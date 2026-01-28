@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Single File JS Piano</title>
+    <style>
+        /* --- CSS STYLING --- */
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #222;
+            font-family: 'Segoe UI', sans-serif;
+            color: white;
+            flex-direction: column;
+            margin: 0;
+            user-select: none; /* Prevent text selection while playing */
+        }
+
+        h1 { margin-bottom: 10px; font-weight: 300; letter-spacing: 2px; }
+        p { margin-bottom: 30px; color: #aaa; font-size: 0.9rem; }
+
+        .piano {
+            display: flex;
+            position: relative;
+            background: #333;
+            padding: 10px 10px 0 10px;
+            border-radius: 8px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        .key {
+            position: relative;
+            border-radius: 0 0 5px 5px;
+            cursor: pointer;
+            transition: all 0.1s ease;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 10px;
+            font-size: 12px;
+            font-weight: bold;
+            box-shadow: inset 0 -5px 10px rgba(0,0,0,0.1);
+        }
+
+        /* White Keys */
+        .key.white {
+            width: 60px;
+            height: 200px;
+            background: white;
+            border: 1px solid #ccc;
+            color: #333;
+            z-index: 1;
+        }
+
+        .key.white.active {
+            background: #eee;
+            transform: scale(0.98);
+            box-shadow: inset 0 -2px 5px rgba(0,0,0,0.2);
+        }
+
+        /* Black Keys */
+        .key.black {
+            width: 40px;
+            height: 120px;
+            background: #111;
+            color: white;
+            margin-left: -20px; /* Pull left to overlap */
+            margin-right: -20px; /* Pull right to allow next white key to slide in */
+            z-index: 2; /* Sit on top */
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+        }
+
+        .key.black.active {
+            background: #333;
+            box-shadow: inset 0 -2px 5px rgba(255,255,255,0.1);
+        }
+
+        /* Helper text on keys */
+        span { pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <h1>Synthesizer Piano</h1>
+    <p>Use your mouse or keyboard (Z, S, X, D, C, V, G, B, H, N, J, M)</p>
+
+    <div class="piano">
+        <div class="key white" data-note="C4" data-key="z"><span>Z</span></div>
+        <div class="key black" data-note="Cs4" data-key="s"><span>S</span></div>
+        <div class="key white" data-note="D4" data-key="x"><span>X</span></div>
+        <div class="key black" data-note="Ds4" data-key="d"><span>D</span></div>
+        <div class="key white" data-note="E4" data-key="c"><span>C</span></div>
+        <div class="key white" data-note="F4" data-key="v"><span>V</span></div>
+        <div class="key black" data-note="Fs4" data-key="g"><span>G</span></div>
+        <div class="key white" data-note="G4" data-key="b"><span>B</span></div>
+        <div class="key black" data-note="Gs4" data-key="h"><span>H</span></div>
+        <div class="key white" data-note="A4" data-key="n"><span>N</span></div>
+        <div class="key black" data-note="As4" data-key="j"><span>J</span></div>
+        <div class="key white" data-note="B4" data-key="m"><span>M</span></div>
+    </div>
+
+    <script>
+        // --- JAVASCRIPT LOGIC ---
+
+        // 1. Audio Context Setup (Web Audio API)
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        // Note Frequencies (Octave 4)
+        const frequencies = {
+            "C4": 261.63,
+            "Cs4": 277.18,
+            "D4": 293.66,
+            "Ds4": 311.13,
+            "E4": 329.63,
+            "F4": 349.23,
+            "Fs4": 369.99,
+            "G4": 392.00,
+            "Gs4": 415.30,
+            "A4": 440.00,
+            "As4": 466.16,
+            "B4": 493.88
+        };
+
+        // 2. Function to Play Sound
+        function playNote(note) {
+            // Resume context if suspended (browser policy requires user interaction first)
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            osc.type = 'triangle'; // 'sine', 'square', 'sawtooth', 'triangle'
+            osc.frequency.setValueAtTime(frequencies[note], audioCtx.currentTime);
+
+            // Connect Oscillator -> Gain -> Speakers
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            // Envelope (Fade out to avoid clicking sounds)
+            osc.start();
+            gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.5); // 1.5s sustain
+            
+            osc.stop(audioCtx.currentTime + 1.5);
+        }
+
+        // 3. Input Handling
+        const keys = document.querySelectorAll('.key');
+
+        // Helper: Add visual effect and play sound
+        function triggerKey(keyElement) {
+            if(!keyElement) return;
+            
+            const note = keyElement.getAttribute('data-note');
+            playNote(note);
+            
+            // Visual active state
+            keyElement.classList.add('active');
+            setTimeout(() => keyElement.classList.remove('active'), 150);
+        }
+
+        // Mouse Events
+        keys.forEach(key => {
+            key.addEventListener('mousedown', () => triggerKey(key));
+        });
+
+        // Keyboard Events
+        document.addEventListener('keydown', (e) => {
+            if (e.repeat) return; // Prevent repeated triggering when holding key
+            const key = e.key.toLowerCase();
+            const keyElement = document.querySelector(`.key[data-key="${key}"]`);
+            triggerKey(keyElement);
+        });
+    </script>
+</body>
+</html>
