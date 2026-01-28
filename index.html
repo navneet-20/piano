@@ -3,16 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro JS Piano Studio</title>
+    <title>Piano Studio: Pro Export</title>
+    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
     <style>
         :root {
             --bg-color: #121212;
             --panel-bg: #1e1e1e;
             --key-white: #f0f0f0;
             --key-black: #111;
-            --accent: #ff0055; /* Recording Red */
-            --accent-glow: rgba(255, 0, 85, 0.5);
+            --accent: #ff0055;
             --viz-color: #00d2ff;
+            --fx-color: #a020f0;
+            --success: #00ff88;
         }
 
         body {
@@ -30,151 +32,108 @@
 
         /* --- OVERLAY --- */
         #overlay {
-            position: fixed; inset: 0;
-            background: rgba(0,0,0,0.95);
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            transition: opacity 0.5s;
+            position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; transition: opacity 0.5s;
         }
         #overlay h1 { font-size: 4rem; margin: 0; color: var(--viz-color); text-shadow: 0 0 30px var(--viz-color); }
         #overlay p { color: #aaa; margin-top: 10px; font-size: 1.2rem; }
 
         /* --- VISUALIZER --- */
-        canvas {
-            width: 100%;
-            height: 120px;
-            background: #000;
-            border-bottom: 2px solid #333;
-        }
+        canvas { width: 100%; height: 120px; background: #000; border-bottom: 2px solid #333; }
 
-        /* --- CONTROL PANEL --- */
+        /* --- CONTROLS --- */
         .controls {
-            background: var(--panel-bg);
-            padding: 20px;
-            width: 100%; max-width: 800px;
-            box-sizing: border-box;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #333;
-            flex-wrap: wrap;
-            gap: 15px;
+            background: var(--panel-bg); padding: 20px; width: 100%; max-width: 900px; box-sizing: border-box;
+            display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; flex-wrap: wrap; gap: 20px;
         }
 
+        .control-section { display: flex; gap: 15px; border-right: 1px solid #444; padding-right: 20px; }
+        .control-section:last-child { border: none; }
         .control-group { display: flex; flex-direction: column; gap: 5px; }
         label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
-        
-        select, input[type=range] {
-            background: #333; color: white; border: none; padding: 5px; border-radius: 4px; outline: none;
-        }
+        select, input[type=range] { background: #333; color: white; border: none; padding: 5px; border-radius: 4px; outline: none; cursor: pointer; }
+        input[type=range].fx-slider { accent-color: var(--fx-color); }
 
-        /* RECORDING BUTTONS */
+        /* BUTTONS */
         .rec-controls { display: flex; gap: 10px; align-items: center; }
-        
         button {
-            border: none; padding: 10px 20px; border-radius: 4px; 
-            font-weight: bold; cursor: pointer; transition: all 0.2s;
-            text-transform: uppercase; font-size: 0.8rem;
+            border: none; padding: 10px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: all 0.2s;
+            text-transform: uppercase; font-size: 0.75rem; display: flex; align-items: center; gap: 5px;
         }
-
         #btn-record { background: #333; color: #ff4444; }
         #btn-record.recording { background: #ff4444; color: white; box-shadow: 0 0 15px #ff4444; animation: pulse 1s infinite; }
-        
         #btn-stop { background: #333; color: white; }
         #btn-play { background: #333; color: var(--viz-color); }
         #btn-play:disabled { opacity: 0.3; cursor: not-allowed; }
+        
+        .export-group { display: none; gap: 5px; } /* Hidden until recording exists */
+        .btn-dl { background: #333; color: var(--success); }
+        .btn-dl:hover { background: var(--success); color: #000; }
 
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
         /* --- PIANO --- */
-        .piano-container {
-            position: relative;
-            padding: 20px;
-            background: #222;
-            border-radius: 0 0 10px 10px;
-            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
-        }
-
+        .piano-container { position: relative; padding: 20px; background: #222; border-radius: 0 0 10px 10px; box-shadow: 0 30px 60px rgba(0,0,0,0.5); }
         .piano { display: flex; position: relative; }
-
         .key {
-            position: relative;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: flex-end;
-            padding-bottom: 15px;
-            font-size: 14px;
-            font-weight: bold;
-            border-radius: 0 0 6px 6px;
-            transition: all 0.1s;
+            position: relative; cursor: pointer; display: flex; justify-content: center; align-items: flex-end; padding-bottom: 15px;
+            font-size: 14px; font-weight: bold; border-radius: 0 0 6px 6px; transition: all 0.1s;
         }
-
-        .key.white {
-            width: 60px; height: 220px;
-            background: var(--key-white);
-            color: #333;
-            border: 1px solid #ccc;
-            z-index: 1;
-        }
-        .key.white.active {
-            background: #ddd;
-            transform: scaleY(0.98);
-            border-bottom: 5px solid var(--viz-color);
-        }
-
-        .key.black {
-            width: 40px; height: 140px;
-            background: var(--key-black);
-            color: white;
-            margin: 0 -20px;
-            z-index: 2;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
-        }
-        .key.black.active {
-            background: #333;
-            border-bottom: 4px solid var(--viz-color);
-        }
+        .key.white { width: 60px; height: 220px; background: var(--key-white); color: #333; border: 1px solid #ccc; z-index: 1; }
+        .key.white.active { background: #ddd; transform: scaleY(0.98); border-bottom: 5px solid var(--viz-color); }
+        .key.black { width: 40px; height: 140px; background: var(--key-black); color: white; margin: 0 -20px; z-index: 2; box-shadow: 2px 2px 5px rgba(0,0,0,0.5); }
+        .key.black.active { background: #333; border-bottom: 4px solid var(--viz-color); }
         
-        /* STATUS TEXT */
-        #status-text { margin-left: 10px; font-size: 12px; color: #666; font-style: italic; }
-
+        #status-text { margin-left: 10px; font-size: 12px; color: #666; font-style: italic; min-width: 60px; }
     </style>
 </head>
 <body>
 
     <div id="overlay">
         <h1>PIANO STUDIO</h1>
-        <p>Click anywhere to start</p>
+        <p>Click to Initialize Audio Engine</p>
     </div>
 
     <canvas id="visualizer"></canvas>
 
     <div class="controls">
-        <div style="display:flex; gap: 20px;">
+        <div class="control-section">
             <div class="control-group">
-                <label>Sound</label>
+                <label>Waveform</label>
                 <select id="waveform">
-                    <option value="triangle">Triangle (Soft)</option>
-                    <option value="sawtooth">Sawtooth (Synth)</option>
-                    <option value="square">Square (Retro)</option>
-                    <option value="sine">Sine (Pure)</option>
+                    <option value="triangle">Triangle</option>
+                    <option value="sawtooth">Sawtooth</option>
+                    <option value="square">Square</option>
+                    <option value="sine">Sine</option>
                 </select>
             </div>
             <div class="control-group">
-                <label>Volume</label>
+                <label>Vol</label>
                 <input type="range" id="volume" min="0" max="0.5" step="0.05" value="0.2">
+            </div>
+        </div>
+
+        <div class="control-section">
+            <div class="control-group">
+                <label style="color: var(--fx-color);">Reverb</label>
+                <input type="range" id="reverb-amt" class="fx-slider" min="0" max="1" step="0.1" value="0.3">
+            </div>
+            <div class="control-group">
+                <label style="color: var(--fx-color);">Delay</label>
+                <input type="range" id="delay-amt" class="fx-slider" min="0" max="0.8" step="0.1" value="0.0">
             </div>
         </div>
 
         <div class="rec-controls">
             <button id="btn-record">● Rec</button>
             <button id="btn-stop">■ Stop</button>
-            <button id="btn-play" disabled>▶ Play</button>
+            <button id="btn-play" disabled>▶ Review</button>
+            
+            <div class="export-group" id="export-group">
+                <button class="btn-dl" onclick="exportAudio('mp3')">↓ MP3</button>
+                <button class="btn-dl" onclick="exportAudio('wav')">↓ WAV</button>
+            </div>
+            
             <span id="status-text">Ready</span>
         </div>
     </div>
@@ -200,16 +159,17 @@
     <script>
         // --- 1. CORE VARIABLES ---
         let audioCtx, analyser;
+        let masterInput, reverbNode, reverbGain, delayNode, delayFeedback, delayGain;
         let isInit = false;
         
-        // Settings
-        const settings = { waveform: 'triangle', volume: 0.2 };
-
-        // Recording State
-        let isRecording = false;
+        // Recording Vars
+        let recordedEvents = []; // Stores {note, time, duration}
         let recordingStartTime = 0;
-        let recordedNotes = []; // Stores { note: "C4", time: 1050 }
+        let isRecording = false;
         let playbackTimeouts = [];
+
+        // Settings
+        const settings = { waveform: 'triangle', volume: 0.2, reverb: 0.3, delay: 0.0 };
 
         const frequencies = {
             "C4": 261.63, "Cs4": 277.18, "D4": 293.66, "Ds4": 311.13,
@@ -217,150 +177,327 @@
             "Gs4": 415.30, "A4": 440.00, "As4": 466.16, "B4": 493.88, "C5": 523.25
         };
 
-        // --- 2. AUDIO ENGINE & VISUALIZER ---
+        // --- 2. AUDIO ENGINE ---
+        function createReverbBuffer(ctx) {
+            const length = ctx.sampleRate * 2.0;
+            const buffer = ctx.createBuffer(2, length, ctx.sampleRate);
+            for (let c = 0; c < 2; c++) {
+                const data = buffer.getChannelData(c);
+                for (let i = 0; i < length; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3);
+                }
+            }
+            return buffer;
+        }
+
+        // Setup the audio graph (Used for both Live play and Offline rendering)
+        function setupAudioGraph(ctx, destination) {
+            const input = ctx.createGain();
+            
+            // Reverb
+            const rNode = ctx.createConvolver();
+            rNode.buffer = createReverbBuffer(ctx);
+            const rGain = ctx.createGain();
+            rGain.gain.value = settings.reverb;
+
+            // Delay
+            const dNode = ctx.createDelay();
+            dNode.delayTime.value = 0.4;
+            const dFeedback = ctx.createGain();
+            dFeedback.gain.value = 0.4;
+            const dGain = ctx.createGain();
+            dGain.gain.value = settings.delay;
+
+            // Connections
+            input.connect(destination); // Dry
+            
+            // Reverb Chain
+            input.connect(rNode);
+            rNode.connect(rGain);
+            rGain.connect(destination);
+
+            // Delay Chain
+            input.connect(dNode);
+            dNode.connect(dFeedback);
+            dFeedback.connect(dNode);
+            dNode.connect(dGain);
+            dGain.connect(destination);
+
+            return { input, rGain, dGain };
+        }
+
         function initAudio() {
             if(isInit) return;
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             analyser = audioCtx.createAnalyser();
             analyser.fftSize = 2048;
-            analyser.connect(audioCtx.destination); // Master Out
 
+            // Setup Live Graph
+            const graph = setupAudioGraph(audioCtx, analyser);
+            masterInput = graph.input;
+            reverbGain = graph.rGain;
+            delayGain = graph.dGain;
+
+            analyser.connect(audioCtx.destination);
+            
             isInit = true;
             document.getElementById('overlay').style.opacity = '0';
             setTimeout(() => document.getElementById('overlay').remove(), 500);
             drawVisualizer();
         }
 
+        // Play Note function (Works for both contexts)
+        function scheduleNote(ctx, inputNode, note, time, type, vol) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            
+            osc.type = type;
+            osc.frequency.value = frequencies[note];
+            
+            osc.connect(gain);
+            gain.connect(inputNode);
+            
+            osc.start(time);
+            gain.gain.setValueAtTime(vol, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 1.5);
+            osc.stop(time + 1.5);
+        }
+
         function playNote(note, isPlayback = false) {
             if(!isInit) return;
-
-            // 1. Audio Generation
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-
-            osc.type = settings.waveform;
-            osc.frequency.value = frequencies[note];
-
-            osc.connect(gain);
-            gain.connect(analyser); // Connect to visualizer -> speakers
-
+            
             const now = audioCtx.currentTime;
-            osc.start(now);
-            gain.gain.setValueAtTime(settings.volume, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
-            osc.stop(now + 1.5);
+            scheduleNote(audioCtx, masterInput, note, now, settings.waveform, settings.volume);
 
-            // 2. Recording Logic
             if (isRecording && !isPlayback) {
-                const timeOffset = Date.now() - recordingStartTime;
-                recordedNotes.push({ note: note, time: timeOffset });
+                recordedEvents.push({ 
+                    note: note, 
+                    time: Date.now() - recordingStartTime,
+                    settings: { ...settings } // Capture snapshot of settings
+                });
             }
 
-            // 3. Visual Feedback (Only needed if triggered by Playback script)
-            if (isPlayback) {
-                const keyEl = document.querySelector(`.key[data-note="${note}"]`);
-                if (keyEl) {
-                    keyEl.classList.add('active');
-                    setTimeout(() => keyEl.classList.remove('active'), 150);
-                }
+            // Visuals
+            const keyEl = document.querySelector(`.key[data-note="${note}"]`);
+            if (keyEl) {
+                keyEl.classList.add('active');
+                setTimeout(() => keyEl.classList.remove('active'), 150);
             }
         }
 
-        // --- 3. VISUALIZER DRAW LOOP ---
+        // --- 3. EXPORT ENGINE (Offline Rendering) ---
+        async function exportAudio(format) {
+            if(recordedEvents.length === 0) return;
+            
+            const btn = document.querySelector('.export-group');
+            const originalText = document.getElementById('status-text').innerText;
+            document.getElementById('status-text').innerText = "Rendering...";
+
+            // 1. Calculate Song Duration
+            const lastNote = recordedEvents[recordedEvents.length - 1];
+            const duration = (lastNote.time / 1000) + 2.0; // +2s for reverb tail
+
+            // 2. Setup Offline Context
+            const offlineCtx = new OfflineAudioContext(2, 44100 * duration, 44100);
+            const graph = setupAudioGraph(offlineCtx, offlineCtx.destination);
+            
+            // Apply captured FX settings
+            graph.rGain.gain.value = settings.reverb;
+            graph.dGain.gain.value = settings.delay;
+
+            // 3. Schedule all notes
+            recordedEvents.forEach(event => {
+                scheduleNote(
+                    offlineCtx, 
+                    graph.input, 
+                    event.note, 
+                    event.time / 1000, 
+                    event.settings.waveform, 
+                    event.settings.volume
+                );
+            });
+
+            // 4. Render
+            const renderedBuffer = await offlineCtx.startRendering();
+
+            // 5. Convert & Download
+            if (format === 'wav') {
+                const wavBlob = bufferToWave(renderedBuffer, length);
+                downloadBlob(wavBlob, 'song.wav');
+            } else if (format === 'mp3') {
+                const mp3Blob = bufferToMp3(renderedBuffer);
+                downloadBlob(mp3Blob, 'song.mp3');
+            }
+
+            document.getElementById('status-text').innerText = "Exported!";
+            setTimeout(() => document.getElementById('status-text').innerText = originalText, 2000);
+        }
+
+        // Helper: Convert AudioBuffer to WAV
+        function bufferToWave(abuffer) {
+            let numOfChan = abuffer.numberOfChannels,
+                length = abuffer.length * numOfChan * 2 + 44,
+                buffer = new ArrayBuffer(length),
+                view = new DataView(buffer),
+                channels = [], i, sample, offset = 0, pos = 0;
+
+            // Write WAV Header
+            setUint32(0x46464952); // "RIFF"
+            setUint32(length - 8); // file length - 8
+            setUint32(0x45564157); // "WAVE"
+            setUint32(0x20746d66); // "fmt " chunk
+            setUint32(16); // length = 16
+            setUint16(1); // PCM (uncompressed)
+            setUint16(numOfChan);
+            setUint32(abuffer.sampleRate);
+            setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
+            setUint16(numOfChan * 2); // block-align
+            setUint16(16); // 16-bit
+            setUint32(0x61746164); // "data" - chunk
+            setUint32(length - pos - 4); // chunk length
+
+            // Interleave channels
+            for(i = 0; i < abuffer.numberOfChannels; i++) channels.push(abuffer.getChannelData(i));
+
+            while(pos < abuffer.length) {
+                for(i = 0; i < numOfChan; i++) {
+                    sample = Math.max(-1, Math.min(1, channels[i][pos])); // clamp
+                    sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767)|0; // scale to 16-bit
+                    view.setInt16(44 + offset, sample, true);
+                    offset += 2;
+                }
+                pos++;
+            }
+
+            return new Blob([buffer], {type: "audio/wav"});
+
+            function setUint16(data) { view.setUint16(pos, data, true); pos += 2; }
+            function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
+        }
+
+        // Helper: Convert AudioBuffer to MP3 (using LameJS)
+        function bufferToMp3(buffer) {
+            if (!window.lamejs) {
+                alert("MP3 Encoder (lamejs) not loaded. Check internet connection.");
+                return null;
+            }
+            
+            const channels = 1; // Mono for lighter encoding (or 2 for stereo)
+            const sampleRate = buffer.sampleRate;
+            const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, 128);
+            const samples = buffer.getChannelData(0); // Get Left Channel (simplification)
+            
+            const sampleBlockSize = 1152;
+            const mp3Data = [];
+            
+            // Convert Float32 to Int16
+            const samples16 = new Int16Array(samples.length);
+            for (let i = 0; i < samples.length; i++) {
+                samples16[i] = samples[i] < 0 ? samples[i] * 0x8000 : samples[i] * 0x7FFF;
+            }
+            
+            // Encode
+            for (let i = 0; i < samples16.length; i += sampleBlockSize) {
+                const sampleChunk = samples16.subarray(i, i + sampleBlockSize);
+                const mp3buf = mp3encoder.encodeBuffer(sampleChunk);
+                if (mp3buf.length > 0) mp3Data.push(mp3buf);
+            }
+            
+            const mp3buf = mp3encoder.flush();
+            if (mp3buf.length > 0) mp3Data.push(mp3buf);
+
+            return new Blob(mp3Data, { type: 'audio/mp3' });
+        }
+
+        function downloadBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+        }
+
+        // --- 4. VISUALIZER ---
         const canvas = document.getElementById('visualizer');
         const ctx = canvas.getContext('2d');
-        
         function resize() { canvas.width = window.innerWidth; canvas.height = 120; }
-        window.addEventListener('resize', resize);
-        resize();
+        window.addEventListener('resize', resize); resize();
 
         function drawVisualizer() {
             requestAnimationFrame(drawVisualizer);
             const bufferLength = analyser.frequencyBinCount;
             const data = new Uint8Array(bufferLength);
             analyser.getByteFrequencyData(data);
-
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
+            ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
             const barWidth = (canvas.width / bufferLength) * 2.5;
             let x = 0;
-
             for(let i = 0; i < bufferLength; i++) {
                 const barHeight = data[i] / 2;
-                // Cyan/Blue Gradient
-                ctx.fillStyle = `rgb(${barHeight}, ${100 + barHeight}, 255)`;
+                ctx.fillStyle = `rgb(${barHeight}, ${150 + barHeight}, 255)`;
                 ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
                 x += barWidth + 1;
             }
         }
 
-        // --- 4. RECORDING FUNCTIONS ---
+        // --- 5. UI LOGIC ---
         const btnRecord = document.getElementById('btn-record');
         const btnStop = document.getElementById('btn-stop');
         const btnPlay = document.getElementById('btn-play');
+        const exportGroup = document.getElementById('export-group');
         const statusText = document.getElementById('status-text');
 
         btnRecord.addEventListener('click', () => {
+            if(!isInit) return;
             isRecording = true;
-            recordedNotes = []; // Clear previous
+            recordedEvents = [];
             recordingStartTime = Date.now();
-            
+            exportGroup.style.display = 'none';
             btnRecord.classList.add('recording');
             btnPlay.disabled = true;
             statusText.innerText = "Recording...";
         });
 
         btnStop.addEventListener('click', () => {
+            if(!isRecording) return;
             isRecording = false;
             btnRecord.classList.remove('recording');
-            
-            // Stop any currently playing playback
             playbackTimeouts.forEach(id => clearTimeout(id));
             playbackTimeouts = [];
-
-            if(recordedNotes.length > 0) {
+            if(recordedEvents.length > 0) {
                 btnPlay.disabled = false;
-                statusText.innerText = `Saved ${recordedNotes.length} notes`;
+                exportGroup.style.display = 'flex';
+                statusText.innerText = "Recorded!";
             } else {
                 statusText.innerText = "Ready";
             }
         });
 
         btnPlay.addEventListener('click', () => {
-            if(recordedNotes.length === 0) return;
-            statusText.innerText = "Playing...";
-
-            recordedNotes.forEach(event => {
-                const id = setTimeout(() => {
-                    playNote(event.note, true); // true = isPlayback
-                }, event.time);
-                playbackTimeouts.push(id);
+            if(recordedEvents.length === 0) return;
+            statusText.innerText = "Reviewing...";
+            recordedEvents.forEach(event => {
+                playbackTimeouts.push(setTimeout(() => playNote(event.note, true), event.time));
             });
-
-            // Reset status after song finishes
-            const lastNoteTime = recordedNotes[recordedNotes.length-1].time;
-            const resetId = setTimeout(() => statusText.innerText = "Finished", lastNoteTime + 500);
-            playbackTimeouts.push(resetId);
+            const lastTime = recordedEvents[recordedEvents.length-1].time;
+            playbackTimeouts.push(setTimeout(() => statusText.innerText = "Done", lastTime + 500));
         });
 
-        // --- 5. INPUT HANDLING ---
+        // Event Listeners
         document.getElementById('overlay').addEventListener('click', initAudio);
-        
-        // UI Controls
         document.getElementById('waveform').addEventListener('change', e => settings.waveform = e.target.value);
         document.getElementById('volume').addEventListener('input', e => settings.volume = parseFloat(e.target.value));
+        document.getElementById('reverb-amt').addEventListener('input', e => {
+            settings.reverb = parseFloat(e.target.value);
+            if(reverbGain) reverbGain.gain.value = settings.reverb;
+        });
+        document.getElementById('delay-amt').addEventListener('input', e => {
+            settings.delay = parseFloat(e.target.value);
+            if(delayGain) delayGain.gain.value = settings.delay;
+        });
 
-        // Key Triggers
-        function triggerKey(keyEl) {
-            if(!keyEl) return;
-            keyEl.classList.add('active');
-            setTimeout(() => keyEl.classList.remove('active'), 150);
-            playNote(keyEl.dataset.note);
-        }
-
+        // Inputs
+        function triggerKey(keyEl) { if(!keyEl) return; playNote(keyEl.dataset.note); }
         document.querySelectorAll('.key').forEach(k => k.addEventListener('mousedown', () => triggerKey(k)));
-        
         document.addEventListener('keydown', e => {
             if(e.repeat) return;
             const k = document.querySelector(`.key[data-key="${e.key.toLowerCase()}"]`);
