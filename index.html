@@ -2,25 +2,32 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Glass Piano Studio: Pro Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Glass Piano App</title>
+    
+    <link rel="manifest" href='data:application/manifest+json;base64,eyJuYW1lIjoiR2xhc3MgUGlhbm8iLCJzaG9ydF9uYW1lIjoiUGlhbm8iLCJzdGFydF91cmwiOiIuIiwidGhlbWVfY29xvciIjM4YmRmOCIsImJhY2tncm91bmRfY29sb3IiOiIjMGUxNzJhIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJvcmllbnRhdGlvbiI6ImxhbmRzY2FwZSIsImljb25zIjpbeyJzcmMiOiJodHRwczovL2Nkbi1pY29ucy1wbmcuZmxhdGljb24uY29tLzUxMi8yOTAzLzI5MDMyODkucG5nIiwic2l6ZXMiOiI1MTJ4NTEyIiwidHlwZSI6ImltYWdlL3BuZyJdfQ=='>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#38bdf8">
+
     <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
     <style>
         :root {
-            /* Professional Dark Glass Theme */
             --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-            --glass-bg: rgba(30, 41, 59, 0.7);
+            --glass-bg: rgba(30, 41, 59, 0.85);
             --glass-border: rgba(255, 255, 255, 0.08);
             --glass-blur: blur(12px);
-            --accent: #38bdf8; /* Sky Blue */
-            --accent-active: #0ea5e9;
+            --accent: #38bdf8;
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
         }
 
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
         body {
             margin: 0;
-            min-height: 100vh;
+            height: 100vh;
             background: var(--bg-gradient);
             font-family: 'Segoe UI', system-ui, sans-serif;
             color: var(--text-main);
@@ -30,17 +37,7 @@
             justify-content: center;
             overflow: hidden;
             user-select: none;
-        }
-
-        /* --- BACKGROUND GRADIENTS --- */
-        .bg-glow {
-            position: absolute;
-            width: 600px; height: 600px;
-            background: radial-gradient(circle, rgba(56, 189, 248, 0.1) 0%, rgba(0,0,0,0) 70%);
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: -1;
-            pointer-events: none;
+            touch-action: none; /* Disables browser zooming/scrolling */
         }
 
         /* --- UI CONTAINER --- */
@@ -50,260 +47,214 @@
             -webkit-backdrop-filter: var(--glass-blur);
             border: 1px solid var(--glass-border);
             border-radius: 16px;
-            padding: 25px;
+            padding: 15px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
             display: flex;
             flex-direction: column;
-            gap: 20px;
-            max-width: 950px;
-            width: 95%;
+            gap: 15px;
+            width: 98%;
+            max-width: 900px;
+            height: 95vh;
         }
 
-        /* --- HEADER & PRESETS --- */
-        .top-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px; }
-        h1 { margin: 0; font-weight: 300; letter-spacing: 2px; font-size: 1.2rem; text-transform: uppercase; color: var(--accent); }
-        
-        .preset-group { display: flex; gap: 8px; }
-        .preset-btn {
-            background: transparent; border: 1px solid var(--glass-border); color: var(--text-muted);
-            padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; cursor: pointer; transition: 0.2s;
-        }
-        .preset-btn:hover { border-color: var(--accent); color: var(--text-main); }
-        .preset-btn.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: bold; }
+        /* --- HEADER --- */
+        .top-bar { display: flex; justify-content: space-between; align-items: center; height: 40px; }
+        h1 { margin: 0; font-weight: 300; letter-spacing: 1px; font-size: 1.1rem; color: var(--accent); }
 
-        /* --- VISUALIZER --- */
-        canvas {
-            width: 100%; height: 80px;
-            background: rgba(0,0,0,0.3);
+        .app-btn {
+            background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: white;
+            padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; cursor: pointer;
+        }
+        .app-btn:active { background: var(--accent); color: black; }
+
+        /* --- CONTROLS GRID (Scrollable on small phones) --- */
+        .controls-wrapper {
+            flex: 1;
+            overflow-y: auto;
             border-radius: 8px;
-            border: 1px solid var(--glass-border);
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
         }
 
-        /* --- CONTROLS GRID --- */
         .controls {
             display: grid;
-            grid-template-columns: repeat(4, 1fr); /* 4 Columns */
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
         }
-        
-        @media (max-width: 768px) { .controls { grid-template-columns: 1fr 1fr; } }
 
         .panel {
-            background: rgba(0,0,0,0.2);
-            padding: 12px;
+            background: rgba(255,255,255,0.03);
+            padding: 10px;
             border-radius: 8px;
             display: flex;
             flex-direction: column;
             gap: 8px;
         }
+        .panel-title { font-size: 0.6rem; text-transform: uppercase; color: var(--text-muted); font-weight: bold; }
 
-        .panel-title { font-size: 0.65rem; text-transform: uppercase; color: var(--text-muted); font-weight: bold; letter-spacing: 0.5px; }
-
-        /* INPUTS */
-        input[type=range] { width: 100%; cursor: pointer; accent-color: var(--accent); height: 4px; border-radius: 2px; }
+        /* SLIDERS & BUTTONS */
+        input[type=range] { width: 100%; accent-color: var(--accent); height: 4px; }
+        select { background: #0f172a; color: white; border: 1px solid #334155; padding: 4px; border-radius: 4px; width: 100%; font-size: 0.8rem;}
         
-        button {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid var(--glass-border);
-            color: var(--text-main);
-            padding: 8px;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 0.8rem;
-            display: flex; justify-content: center; align-items: center;
+        button.ctrl-btn {
+            background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-main);
+            padding: 8px; border-radius: 6px; width: 100%; font-size: 0.75rem; cursor: pointer;
         }
-        button:hover { background: rgba(255,255,255,0.1); }
-        button:active { transform: translateY(1px); }
-        button:disabled { opacity: 0.3; cursor: not-allowed; }
-        
-        button.toggle-active {
-            background: rgba(56, 189, 248, 0.2);
-            border-color: var(--accent);
-            color: var(--accent);
-            box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
-        }
+        button.ctrl-btn:active { background: rgba(255,255,255,0.2); transform: scale(0.98); }
+        button.active-toggle { background: var(--accent); color: #000; border-color: var(--accent); }
 
-        /* OCTAVE CONTROLS */
-        .octave-wrapper {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: rgba(0,0,0,0.3);
-            border-radius: 6px;
-            padding: 2px;
-        }
-        .octave-wrapper button { border: none; background: transparent; width: 30px; font-weight: bold; font-size: 1.1rem; }
-        .octave-wrapper button:hover { background: rgba(255,255,255,0.1); }
-        .octave-val { font-weight: bold; color: var(--accent); width: 30px; text-align: center; font-family: monospace; font-size: 1rem; }
+        /* SONG LIBRARY BUTTONS */
+        .song-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+        .song-btn { background: rgba(56, 189, 248, 0.1); border: 1px solid var(--accent); color: var(--accent); padding: 6px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; }
+        .song-btn:active { background: var(--accent); color: #000; }
 
-        /* --- PIANO --- */
+        /* --- PIANO (FLEXIBLE HEIGHT) --- */
         .piano-wrapper {
+            flex: 2; /* Takes up more space */
             position: relative;
             display: flex;
             justify-content: center;
-            margin-top: 5px;
+            min-height: 150px;
         }
 
-        .piano { display: flex; position: relative; }
+        .piano { display: flex; position: relative; width: 100%; height: 100%; }
 
         .key {
             position: relative;
+            flex: 1; /* Auto width */
             cursor: pointer;
             display: flex;
             justify-content: center;
             align-items: flex-end;
             padding-bottom: 15px;
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 600;
-            border-radius: 0 0 6px 6px;
-            transition: background 0.05s, transform 0.05s;
+            border-radius: 0 0 8px 8px;
+            user-select: none;
+            touch-action: none;
         }
 
         .key.white {
-            width: 55px; height: 200px;
-            background: #e2e8f0;
-            color: #334155;
-            margin: 0 2px;
-            z-index: 1;
+            background: #e2e8f0; color: #334155; margin: 0 1px; z-index: 1;
             box-shadow: inset 0 -5px 10px rgba(0,0,0,0.1);
         }
-        .key.white.active {
-            background: #fff;
-            transform: translateY(2px);
-            border-bottom: 4px solid var(--accent);
-        }
+        .key.white.active { background: var(--accent); color: #000; transform: scale(0.95); transform-origin: top; }
 
         .key.black {
-            width: 36px; height: 130px;
-            background: #0f172a;
-            color: #94a3b8;
-            margin: 0 -20px;
-            z-index: 2;
+            background: #0f172a; color: #94a3b8; width: 60%; 
+            margin-left: -30%; margin-right: -30%; /* Overlap logic */
+            z-index: 2; height: 60%; /* Shorter than white */
             box-shadow: 2px 4px 8px rgba(0,0,0,0.4);
-            border: 1px solid #334155;
-            border-top: none;
+            border: 1px solid #334155; border-top: none;
+            pointer-events: auto; /* Ensure black keys capture touch */
         }
-        .key.black.active {
-            background: #1e293b;
-            transform: translateY(2px);
-            border-bottom: 3px solid var(--accent);
-        }
-
-        .key span { pointer-events: none; opacity: 0.6; }
+        /* Black key sizing logic for flexbox is tricky, using absolute positioning for black keys relative to white might be better, 
+           but the visual trick of negative margins works if we explicitly handle z-index in touch logic */
+        
+        .key.black.active { background: var(--accent); color: #fff; transform: scale(0.95); transform-origin: top; }
+        .key span { pointer-events: none; opacity: 0.5; margin-bottom: 5px; }
 
         /* --- OVERLAY --- */
         #overlay {
-            position: fixed; inset: 0; background: rgba(15, 23, 42, 0.95); z-index: 2000;
+            position: fixed; inset: 0; background: rgba(15, 23, 42, 0.98); z-index: 2000;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            transition: opacity 0.5s; cursor: pointer;
+            transition: opacity 0.5s; cursor: pointer; text-align: center; padding: 20px;
         }
-        #overlay h1 { font-size: 3rem; color: var(--accent); margin-bottom: 10px; text-shadow: 0 0 30px var(--accent); }
-
+        #overlay h1 { font-size: 2.5rem; color: var(--accent); margin-bottom: 10px; }
+        #overlay p { color: #ccc; font-size: 1rem; margin-bottom: 30px; }
+        .install-hint { font-size: 0.8rem; color: #666; border: 1px dashed #444; padding: 10px; border-radius: 8px; max-width: 300px;}
     </style>
 </head>
 <body>
 
-    <div class="bg-glow"></div>
-
     <div id="overlay">
-        <h1>GLASS STUDIO</h1>
-        <p>Click to Initialize Audio Engine</p>
+        <h1>GLASS PIANO</h1>
+        <p>Tap to Start Engine</p>
+        <div class="install-hint">
+            <strong>To Install as App:</strong><br>
+            iOS: Share → Add to Home Screen<br>
+            Android: Chrome Menu → Install App
+        </div>
     </div>
 
     <div class="studio-container">
         
         <div class="top-bar">
-            <h1>Audio Engine Pro</h1>
-            <div class="preset-group">
-                <button class="preset-btn active" onclick="loadPreset('studio')">Studio</button>
-                <button class="preset-btn" onclick="loadPreset('pad')">Dreamy Pad</button>
-                <button class="preset-btn" onclick="loadPreset('retro')">8-Bit</button>
-                <button class="preset-btn" onclick="loadPreset('organ')">Organ</button>
-            </div>
+            <h1>Mobile Studio</h1>
+            <button class="app-btn" id="btn-fs">Fullscreen</button>
         </div>
 
-        <canvas id="visualizer"></canvas>
-
-        <div class="controls">
-            
-            <div class="panel">
-                <div class="panel-title">Oscillator</div>
-                <select id="waveform" style="background:#0f172a; color:#fff; border:1px solid #334155; padding:4px; border-radius:4px;">
-                    <option value="triangle">Triangle</option>
-                    <option value="sawtooth" selected>Sawtooth</option>
-                    <option value="square">Square</option>
-                    <option value="sine">Sine</option>
-                </select>
+        <div class="controls-wrapper">
+            <div class="controls">
                 
-                <div class="panel-title" style="margin-top:5px;">Octave</div>
-                <div class="octave-wrapper">
-                    <button id="btn-oct-down">−</button>
-                    <div class="octave-val" id="octave-display">4</div>
-                    <button id="btn-oct-up">+</button>
+                <div class="panel">
+                    <div class="panel-title">Song Library</div>
+                    <div class="song-grid">
+                        <button class="song-btn" onclick="playSong('birthday')">Birthday</button>
+                        <button class="song-btn" onclick="playSong('love')">I Love You</button>
+                        <button class="song-btn" onclick="playSong('joy')">Ode to Joy</button>
+                        <button class="song-btn" onclick="stopSong()">⏹ Stop</button>
+                    </div>
                 </div>
-            </div>
 
-            <div class="panel">
-                <div class="panel-title">Dynamics</div>
-                <button id="btn-sustain" style="width:100%; margin-bottom:5px;">Sustain (Space)</button>
-                
-                <div style="display:flex; justify-content:space-between; font-size:0.7rem; align-items:center;">
-                    <span style="color:#aaa;">Release</span>
-                    <input type="range" id="release" min="0.1" max="2.0" step="0.1" value="0.5" style="width:60%">
+                <div class="panel">
+                    <div class="panel-title">Sound</div>
+                    <select id="waveform">
+                        <option value="triangle">Triangle (Soft)</option>
+                        <option value="sawtooth" selected>Sawtooth (Rich)</option>
+                        <option value="square">Square (8-Bit)</option>
+                        <option value="sine">Sine (Pure)</option>
+                    </select>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                        <button class="ctrl-btn" id="btn-oct-down">- Oct</button>
+                        <span id="oct-disp" style="padding:5px; font-weight:bold;">4</span>
+                        <button class="ctrl-btn" id="btn-oct-up">+ Oct</button>
+                    </div>
                 </div>
-                <div style="display:flex; justify-content:space-between; font-size:0.7rem; align-items:center; margin-top:5px;">
-                    <span style="color:#aaa;">Volume</span>
-                    <input type="range" id="volume" min="0" max="0.5" step="0.05" value="0.2" style="width:60%">
-                </div>
-            </div>
 
-            <div class="panel">
-                <div class="panel-title">FX Rack</div>
-                <div style="display:flex; justify-content:space-between; font-size:0.7rem; align-items:center;">
-                    <span style="color:var(--accent);">Reverb</span>
-                    <input type="range" id="reverb" max="1" step="0.1" value="0.3" style="width:60%">
+                <div class="panel">
+                    <div class="panel-title">Recorder</div>
+                    <div style="display:flex; gap:5px;">
+                        <button class="ctrl-btn" id="btn-rec" style="color:#ef4444;">● Rec</button>
+                        <button class="ctrl-btn" id="btn-stop">■</button>
+                        <button class="ctrl-btn" id="btn-play">▶</button>
+                    </div>
+                    <div id="status" style="font-size:0.7rem; color:#64748b; margin-top:5px; text-align:center;">Ready</div>
                 </div>
-                <div style="display:flex; justify-content:space-between; font-size:0.7rem; align-items:center; margin-top:5px;">
-                    <span style="color:var(--accent);">Delay</span>
-                    <input type="range" id="delay" max="0.8" step="0.1" value="0.0" style="width:60%">
-                </div>
-            </div>
 
-            <div class="panel">
-                <div class="panel-title">Transport</div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
-                    <button id="btn-rec" style="color: #ef4444;">● Rec</button>
-                    <button id="btn-stop">■ Stop</button>
-                    <button id="btn-play" disabled>▶ Play</button>
-                    <button id="btn-dl-mp3" disabled style="color:var(--accent);">↓ MP3</button>
+                <div class="panel">
+                    <div class="panel-title">FX</div>
+                    <div style="display:flex; align-items:center; gap:5px; font-size:0.7rem;">
+                        <span>Rev</span>
+                        <input type="range" id="reverb" max="1" step="0.1" value="0.3">
+                    </div>
+                    <button class="ctrl-btn" id="btn-sustain" style="margin-top:5px;">Sustain: Off</button>
                 </div>
-                <div id="status" style="font-size: 0.7rem; color: #64748b; margin-top: 5px; text-align: center;">System Ready</div>
-            </div>
 
+            </div>
         </div>
 
         <div class="piano-wrapper">
-            <div class="piano">
-                <div class="key white" data-note="C" data-key="z"><span>Z</span></div>
-                <div class="key black" data-note="C#" data-key="s"><span>S</span></div>
-                <div class="key white" data-note="D" data-key="x"><span>X</span></div>
-                <div class="key black" data-note="D#" data-key="d"><span>D</span></div>
-                <div class="key white" data-note="E" data-key="c"><span>C</span></div>
-                <div class="key white" data-note="F" data-key="v"><span>V</span></div>
-                <div class="key black" data-note="F#" data-key="g"><span>G</span></div>
-                <div class="key white" data-note="G" data-key="b"><span>B</span></div>
-                <div class="key black" data-note="G#" data-key="h"><span>H</span></div>
-                <div class="key white" data-note="A" data-key="n"><span>N</span></div>
-                <div class="key black" data-note="A#" data-key="j"><span>J</span></div>
-                <div class="key white" data-note="B" data-key="m"><span>M</span></div>
-                <div class="key white" data-note="C2" data-key=","><span>,</span></div>
+            <div class="piano" id="piano">
+                <div class="key white" data-note="C" data-key="z"><span>C</span></div>
+                <div class="key black" data-note="C#" data-key="s"></div>
+                <div class="key white" data-note="D" data-key="x"><span>D</span></div>
+                <div class="key black" data-note="D#" data-key="d"></div>
+                <div class="key white" data-note="E" data-key="c"><span>E</span></div>
+                <div class="key white" data-note="F" data-key="v"><span>F</span></div>
+                <div class="key black" data-note="F#" data-key="g"></div>
+                <div class="key white" data-note="G" data-key="b"><span>G</span></div>
+                <div class="key black" data-note="G#" data-key="h"></div>
+                <div class="key white" data-note="A" data-key="n"><span>A</span></div>
+                <div class="key black" data-note="A#" data-key="j"></div>
+                <div class="key white" data-note="B" data-key="m"><span>B</span></div>
+                <div class="key white" data-note="C2" data-key=","><span>C2</span></div>
             </div>
         </div>
     </div>
 
     <script>
-        // --- CONFIG & STATE ---
+        // --- 1. CONFIG & SONGS ---
         const config = {
             baseFreq: {
                 "C": 261.63, "C#": 277.18, "D": 293.66, "D#": 311.13,
@@ -312,78 +263,61 @@
             },
             waveform: 'sawtooth',
             vol: 0.2,
-            release: 0.5,
             reverb: 0.3,
-            delay: 0.0,
-            octave: 0, // 0 = Octave 4
+            octave: 0,
             sustain: false
         };
 
-        let audioCtx, analyser, masterCompressor, reverbBus, delayBus;
+        const songs = {
+            birthday: [
+                {n:'G', d:200, w:300}, {n:'G', d:200, w:600}, {n:'A', d:400, w:1000}, {n:'G', d:400, w:1500}, {n:'C2', d:400, w:2000}, {n:'B', d:800, w:2500},
+                {n:'G', d:200, w:3300}, {n:'G', d:200, w:3600}, {n:'A', d:400, w:4000}, {n:'G', d:400, w:4500}, {n:'D', d:400, w:5000, oct:1}, {n:'C2', d:800, w:5500}
+            ],
+            love: [
+                {n:'G', d:400, w:0}, {n:'E', d:400, w:500}, {n:'G', d:400, w:1000},
+                {n:'G', d:400, w:1500}, {n:'E', d:400, w:2000}, {n:'G', d:400, w:2500},
+                {n:'A', d:400, w:3000}, {n:'G', d:400, w:3500}, {n:'F', d:400, w:4000}, {n:'E', d:400, w:4500}, {n:'D', d:800, w:5000},
+                {n:'E', d:400, w:6000}, {n:'F', d:400, w:6500}, {n:'E', d:400, w:7000}, {n:'D', d:400, w:7500}, {n:'C', d:800, w:8000}
+            ],
+            joy: [
+                {n:'E', d:300, w:0}, {n:'E', d:300, w:350}, {n:'F', d:300, w:700}, {n:'G', d:300, w:1050},
+                {n:'G', d:300, w:1400}, {n:'F', d:300, w:1750}, {n:'E', d:300, w:2100}, {n:'D', d:300, w:2450},
+                {n:'C', d:300, w:2800}, {n:'C', d:300, w:3150}, {n:'D', d:300, w:3500}, {n:'E', d:300, w:3850},
+                {n:'E', d:400, w:4200}, {n:'D', d:100, w:4700}, {n:'D', d:800, w:4900}
+            ]
+        };
+
+        let audioCtx, masterGain, reverbNode, songTimeouts = [];
         let isInit = false;
-        
+        let lastTouchedKey = null;
+
         // Recording
         let recordedEvents = [];
         let startTime = 0;
         let isRecording = false;
-        let playbackTimeouts = [];
 
-        // --- AUDIO ENGINE ---
+        // --- 2. AUDIO ENGINE ---
         function initAudio() {
             if(isInit) return;
             const Actx = window.AudioContext || window.webkitAudioContext;
             audioCtx = new Actx();
             
-            // 1. Create Compressor (Master Bus) - Prevents clipping
-            masterCompressor = audioCtx.createDynamicsCompressor();
-            masterCompressor.threshold.setValueAtTime(-24, audioCtx.currentTime);
-            masterCompressor.knee.setValueAtTime(30, audioCtx.currentTime);
-            masterCompressor.ratio.setValueAtTime(12, audioCtx.currentTime);
-            masterCompressor.attack.setValueAtTime(0.003, audioCtx.currentTime);
-            masterCompressor.release.setValueAtTime(0.25, audioCtx.currentTime);
-
-            // 2. Analyser
-            analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 2048;
+            masterGain = audioCtx.createGain();
+            masterGain.connect(audioCtx.destination);
             
-            // 3. Routing
-            masterCompressor.connect(analyser);
-            analyser.connect(audioCtx.destination);
-
-            // 4. Setup FX
-            setupFX(audioCtx, masterCompressor);
+            // Reverb
+            reverbNode = audioCtx.createConvolver();
+            reverbNode.buffer = createImpulse(audioCtx);
+            const revGain = audioCtx.createGain();
+            revGain.gain.value = config.reverb;
             
+            masterGain.connect(reverbNode);
+            reverbNode.connect(revGain);
+            revGain.connect(audioCtx.destination);
+
             isInit = true;
             document.getElementById('overlay').style.opacity = '0';
             setTimeout(()=>document.getElementById('overlay').remove(), 500);
-            drawViz();
-        }
-
-        function setupFX(ctx, destination) {
-            // Reverb
-            const conv = ctx.createConvolver();
-            conv.buffer = createImpulse(ctx);
-            const revGain = ctx.createGain();
-            revGain.gain.value = config.reverb;
-            reverbBus = revGain;
-
-            // Delay
-            const dNode = ctx.createDelay();
-            dNode.delayTime.value = 0.3; // 300ms
-            const dFeed = ctx.createGain();
-            dFeed.gain.value = 0.4;
-            const dGain = ctx.createGain();
-            dGain.gain.value = config.delay;
-            delayBus = dGain;
-
-            // Reverb Routing
-            revGain.connect(destination);
-
-            // Delay Routing
-            dNode.connect(dFeed);
-            dFeed.connect(dNode);
-            dNode.connect(dGain);
-            dGain.connect(destination);
         }
 
         function createImpulse(ctx) {
@@ -397,12 +331,11 @@
             return buf;
         }
 
-        function playNote(noteName, isPlayback = false, overrideOct = null) {
+        function playNote(note, duration=null, forceOct=null) {
             if(!isInit) return;
             
-            const oct = overrideOct !== null ? overrideOct : config.octave;
-            const base = config.baseFreq[noteName];
-            const freq = base * Math.pow(2, oct);
+            const oct = forceOct !== null ? forceOct : config.octave;
+            const freq = config.baseFreq[note] * Math.pow(2, oct);
 
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
@@ -410,271 +343,136 @@
             osc.type = config.waveform;
             osc.frequency.value = freq;
             
-            // Connect to FX and Master
             osc.connect(gain);
+            gain.connect(masterGain);
             
-            // Dry Signal -> Master
-            gain.connect(masterCompressor); 
-            
-            // Wet Signal -> FX Buses
-            gain.connect(reverbBus.context.createGain().connect(reverbBus.context.destination) ? reverbBus : masterCompressor); // Fallback logic
-            
-            // Reverb Send
-            const revSend = audioCtx.createGain();
-            revSend.gain.value = 1.0; 
-            gain.connect(revSend);
-            revSend.connect(reverbBus.context ? reverbBus.context.destination : reverbBus.input || reverbBus.context.createGain()); // Fix for simple bus
-            
-            // We need to connect gain node to the FX inputs created in setupFX
-            // Since setupFX connects TO destination, we need variables for INPUTS.
-            // Simplified: Re-create connections here for clarity in single file
-            gain.connect(reverbBus.context ? reverbBus : reverbBus); 
-            gain.connect(delayBus.context ? delayBus : delayBus); // Incorrect direct connect, let's fix routing below
-            
-            // --- CORRECT ROUTING FOR SINGLE FILE ---
-            // Because previous setupFX was simple, let's just do direct connections here to ensure it works
-            // Note -> Gain -> Master
-            // Note -> Gain -> ReverbConvolver -> ReverbGain -> Master
-            // Note -> Gain -> DelayNode -> DelayGain -> Master
-            
-            // Reconstruct graph for this note
-            // 1. Master
-            gain.connect(masterCompressor);
-
-            // 2. Reverb Send
-            const rSend = audioCtx.createConvolver();
-            rSend.buffer = reverbBus.buffer || createImpulse(audioCtx); // Reuse buffer if possible, or create new
-            const rVol = audioCtx.createGain();
-            rVol.gain.value = config.reverb;
-            gain.connect(rSend);
-            rSend.connect(rVol);
-            rVol.connect(masterCompressor);
-
-            // 3. Delay Send
-            if(config.delay > 0.05) {
-                const dNode = audioCtx.createDelay();
-                dNode.delayTime.value = 0.3;
-                const dFeed = audioCtx.createGain();
-                dFeed.gain.value = 0.3;
-                const dVol = audioCtx.createGain();
-                dVol.gain.value = config.delay;
-                
-                gain.connect(dNode);
-                dNode.connect(dFeed);
-                dFeed.connect(dNode);
-                dNode.connect(dVol);
-                dVol.connect(masterCompressor);
-            }
-
             const now = audioCtx.currentTime;
             osc.start(now);
             
-            // Envelope
-            const releaseTime = config.sustain ? 2.0 : config.release; // Sustain Logic
+            // Release Logic
+            const sustainTime = duration ? duration/1000 : (config.sustain ? 1.5 : 0.5);
             
             gain.gain.setValueAtTime(config.vol, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + releaseTime);
-            osc.stop(now + releaseTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + sustainTime);
+            osc.stop(now + sustainTime);
 
             // Record
-            if(isRecording && !isPlayback) {
-                recordedEvents.push({
-                    note: noteName,
-                    time: Date.now() - startTime,
-                    oct: oct,
-                    sets: { wf: config.waveform, vol: config.vol, rel: config.release }
-                });
+            if(isRecording) {
+                recordedEvents.push({note:note, time:Date.now()-startTime, oct:oct, sets:{...config}});
             }
 
-            // Visuals
-            if(!isPlayback) {
-                const key = document.querySelector(`.key[data-note="${noteName}"]`);
-                if(key) {
-                    key.classList.add('active');
-                    setTimeout(()=>key.classList.remove('active'), 150);
-                }
-            } else {
-                 const key = document.querySelector(`.key[data-note="${noteName}"]`);
-                 if(key) {
-                    key.classList.add('active');
-                    setTimeout(()=>key.classList.remove('active'), 150);
-                }
+            // Visual
+            const key = document.querySelector(`.key[data-note="${note}"]`);
+            if(key) {
+                key.classList.add('active');
+                setTimeout(()=>key.classList.remove('active'), 150);
             }
         }
 
-        // --- OCTAVE LOGIC ---
-        function updateOctave(delta) {
-            config.octave += delta;
-            config.octave = Math.max(-2, Math.min(2, config.octave)); // Limit
-            const displayVal = 4 + config.octave;
-            document.getElementById('octave-display').innerText = displayVal;
-        }
+        // --- 3. MOBILE TOUCH LOGIC (GLISSANDO) ---
+        const pianoEl = document.getElementById('piano');
 
-        document.getElementById('btn-oct-up').onclick = () => updateOctave(1);
-        document.getElementById('btn-oct-down').onclick = () => updateOctave(-1);
-
-        // --- PRESETS ---
-        function loadPreset(name) {
-            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
-
-            if(name === 'studio') {
-                config.waveform = 'triangle'; config.reverb = 0.2; config.delay = 0.0; config.release = 0.5;
-            } else if (name === 'pad') {
-                config.waveform = 'sawtooth'; config.reverb = 0.8; config.delay = 0.3; config.release = 1.5;
-            } else if (name === 'retro') {
-                config.waveform = 'square'; config.reverb = 0.0; config.delay = 0.1; config.release = 0.2;
-            } else if (name === 'organ') {
-                config.waveform = 'sine'; config.reverb = 0.6; config.delay = 0.0; config.release = 0.8;
-            }
-            
-            // Update UI to match
-            document.getElementById('waveform').value = config.waveform;
-            document.getElementById('reverb').value = config.reverb;
-            document.getElementById('delay').value = config.delay;
-            document.getElementById('release').value = config.release;
-        }
-
-        // --- SUSTAIN ---
-        const btnSustain = document.getElementById('btn-sustain');
-        function toggleSustain() {
-            config.sustain = !config.sustain;
-            btnSustain.classList.toggle('toggle-active');
-        }
-        btnSustain.onclick = toggleSustain;
-
-        // --- EXPORT MP3 ---
-        async function exportMP3() {
-            if(!recordedEvents.length) return;
-            const btn = document.getElementById('btn-dl-mp3');
-            btn.innerText = "Rendering...";
-            
-            const dur = (recordedEvents[recordedEvents.length-1].time / 1000) + 2;
-            const offCtx = new OfflineAudioContext(2, 44100 * dur, 44100);
-            
-            // Simple Offline Graph
-            const offMaster = offCtx.createGain();
-            offMaster.connect(offCtx.destination);
-
-            recordedEvents.forEach(evt => {
-                const osc = offCtx.createOscillator();
-                const g = offCtx.createGain();
-                osc.type = evt.sets.wf;
-                osc.frequency.value = config.baseFreq[evt.note] * Math.pow(2, evt.oct);
+        function handleTouch(e) {
+            e.preventDefault(); // Stop scroll
+            // Handle multiple fingers
+            for(let i=0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                const el = document.elementFromPoint(t.clientX, t.clientY);
                 
-                osc.connect(g);
-                g.connect(offMaster);
-                
-                osc.start(evt.time/1000);
-                g.gain.value = evt.sets.vol;
-                g.gain.exponentialRampToValueAtTime(0.001, (evt.time/1000) + evt.sets.rel);
-                osc.stop((evt.time/1000) + evt.sets.rel);
-            });
-
-            const buf = await offCtx.startRendering();
-            
-            // LAME Encode
-            const mp3 = new lamejs.Mp3Encoder(1, 44100, 128);
-            const samples = buf.getChannelData(0);
-            const s16 = new Int16Array(samples.length);
-            for(let i=0; i<samples.length; i++) s16[i] = samples[i] < 0 ? samples[i]*0x8000 : samples[i]*0x7FFF;
-
-            const data = [];
-            const block = 1152;
-            for(let i=0; i<s16.length; i+=block) {
-                const chunk = mp3.encodeBuffer(s16.subarray(i, i+block));
-                if(chunk.length) data.push(chunk);
+                if(el && el.classList.contains('key')) {
+                    // Only play if it's a new key press or entering a new key
+                    if(el !== lastTouchedKey || e.type === 'touchstart') {
+                        playNote(el.dataset.note);
+                        lastTouchedKey = el;
+                    }
+                }
             }
-            const flush = mp3.flush();
-            if(flush.length) data.push(flush);
-
-            const blob = new Blob(data, {type: 'audio/mp3'});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = 'glass-session.mp3'; a.click();
-            btn.innerText = "↓ MP3";
         }
-
-        // --- INPUTS ---
-        document.getElementById('overlay').addEventListener('click', initAudio);
-        const keyMap = { 'z':'C','s':'C#','x':'D','d':'D#','c':'E','v':'F','g':'F#','b':'G','h':'G#','n':'A','j':'A#','m':'B',',':'C2' };
         
-        document.addEventListener('keydown', e => {
-            if(e.repeat) return;
-            const k = e.key.toLowerCase();
-            if(keyMap[k]) playNote(keyMap[k]);
-            if(k === ' ') toggleSustain(); // Spacebar sustain
-            if(k === 'q') updateOctave(-1);
-            if(k === 'w') updateOctave(1);
+        // Reset last key on end
+        pianoEl.addEventListener('touchend', () => lastTouchedKey = null);
+        pianoEl.addEventListener('touchstart', handleTouch, {passive: false});
+        pianoEl.addEventListener('touchmove', handleTouch, {passive: false});
+        
+        // Mouse for PC
+        let isMouseDown = false;
+        pianoEl.addEventListener('mousedown', (e) => {
+            isMouseDown = true;
+            if(e.target.classList.contains('key')) playNote(e.target.dataset.note);
+        });
+        pianoEl.addEventListener('mouseup', () => isMouseDown = false);
+        pianoEl.addEventListener('mouseover', (e) => {
+            if(isMouseDown && e.target.classList.contains('key')) playNote(e.target.dataset.note);
         });
 
-        document.querySelectorAll('.key').forEach(k => k.addEventListener('mousedown', () => playNote(k.dataset.note)));
+        // --- 4. SONG PLAYER ---
+        window.playSong = function(name) {
+            if(!isInit) initAudio();
+            stopSong();
+            const data = songs[name];
+            data.forEach(evt => {
+                const t = setTimeout(() => {
+                    playNote(evt.n, evt.d, evt.oct || 0);
+                }, evt.w);
+                songTimeouts.push(t);
+            });
+        };
 
-        // UI Listeners
+        window.stopSong = function() {
+            songTimeouts.forEach(clearTimeout);
+            songTimeouts = [];
+        };
+
+        // --- 5. UI & UTILS ---
+        document.getElementById('overlay').addEventListener('click', initAudio);
+        document.getElementById('btn-fs').onclick = () => {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else document.exitFullscreen();
+        };
+
+        // Octave
+        const updateOct = (d) => {
+            config.octave = Math.max(-2, Math.min(2, config.octave + d));
+            document.getElementById('oct-disp').innerText = 4 + config.octave;
+        };
+        document.getElementById('btn-oct-up').onclick = () => updateOct(1);
+        document.getElementById('btn-oct-down').onclick = () => updateOct(-1);
+        
+        // Sound
         document.getElementById('waveform').onchange = e => config.waveform = e.target.value;
-        document.getElementById('volume').oninput = e => config.vol = parseFloat(e.target.value);
-        document.getElementById('release').oninput = e => config.release = parseFloat(e.target.value);
         document.getElementById('reverb').oninput = e => config.reverb = parseFloat(e.target.value);
-        document.getElementById('delay').oninput = e => config.delay = parseFloat(e.target.value);
+        
+        // Sustain
+        const btnSus = document.getElementById('btn-sustain');
+        btnSus.onclick = () => {
+            config.sustain = !config.sustain;
+            btnSus.innerText = config.sustain ? "Sustain: ON" : "Sustain: Off";
+            btnSus.classList.toggle('active-toggle');
+        };
 
-        // Rec Logic
+        // Recorder
         const btnRec = document.getElementById('btn-rec');
-        const btnStop = document.getElementById('btn-stop');
-        const btnPlay = document.getElementById('btn-play');
-        const btnDl = document.getElementById('btn-dl-mp3');
         const status = document.getElementById('status');
-
         btnRec.onclick = () => {
-            if(!isInit) return;
             recordedEvents = [];
             isRecording = true;
             startTime = Date.now();
-            btnRec.style.background = "#ef4444"; btnRec.style.color = "#fff";
-            btnPlay.disabled = true; btnDl.disabled = true;
             status.innerText = "Recording...";
+            btnRec.classList.add('active-toggle');
         };
-
-        btnStop.onclick = () => {
+        document.getElementById('btn-stop').onclick = () => {
             isRecording = false;
-            btnRec.style.background = ""; btnRec.style.color = "#ef4444";
-            playbackTimeouts.forEach(clearTimeout);
-            if(recordedEvents.length) {
-                btnPlay.disabled = false; btnDl.disabled = false;
-                status.innerText = `Recorded ${recordedEvents.length} notes`;
-            } else { status.innerText = "Ready"; }
+            btnRec.classList.remove('active-toggle');
+            status.innerText = `Saved ${recordedEvents.length} notes`;
         };
-
-        btnPlay.onclick = () => {
+        document.getElementById('btn-play').onclick = () => {
             if(!recordedEvents.length) return;
-            status.innerText = "Replaying...";
+            status.innerText = "Playing Recording...";
             recordedEvents.forEach(evt => {
-                playbackTimeouts.push(setTimeout(() => playNote(evt.note, true, evt.oct), evt.time));
+                setTimeout(() => playNote(evt.note, null, evt.oct), evt.time);
             });
-            playbackTimeouts.push(setTimeout(()=>status.innerText="Done", recordedEvents[recordedEvents.length-1].time + 500));
         };
-        
-        btnDl.onclick = exportMP3;
 
-        // Viz Loop
-        const cvs = document.getElementById('visualizer');
-        const ctx = cvs.getContext('2d');
-        function drawViz() {
-            requestAnimationFrame(drawViz);
-            cvs.width = cvs.clientWidth; cvs.height = cvs.clientHeight;
-            const len = analyser.frequencyBinCount;
-            const data = new Uint8Array(len);
-            analyser.getByteFrequencyData(data);
-            
-            const barW = (cvs.width / len) * 3;
-            let x = 0;
-            for(let i=0; i<len; i++) {
-                const h = (data[i] / 255) * cvs.height;
-                const hue = 190 + (h/cvs.height)*50; // Cyan to Blue
-                ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
-                ctx.fillRect(x, cvs.height - h, barW, h);
-                x += barW + 1;
-            }
-        }
     </script>
 </body>
 </html>
